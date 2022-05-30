@@ -1,6 +1,6 @@
 const { ApolloServer, gql } = require('apollo-server');
 const { MongoClient, ServerApiVersion } = require('mongodb');
-const bcrypt = require('bcryptjs')
+const bcrypt = require('bcryptjs');
 // Load env vars
 const dotenv = require('dotenv');
 dotenv.config();
@@ -65,11 +65,47 @@ const resolvers = {
     myTaskLists: () => [],
   },
   Mutation: {
-    signUp: (_, {input}) => {
-      
+    signUp: async (_, { input }, { db }) => {
+      const hashedPassword = bcrypt.hashSync(input.password);
+      const user = {
+        ...input,
+        password: hashedPassword,
+      };
+      // save to db
+      const result = await db.collection('Users').insertOne(user);
+      console.log(result);
+      if (result.acknowledged) {
+        return {
+          user,
+          token: 'dummy_token',
+        };
+      }
     },
-    signIn: () => {}
-  }
+    signIn: async (_, { input }, { db }) => {
+      const user = await db.collection('Users').findOne({ email: input.email });
+      if (!user) {
+        throw new Error('Invalid Credentials!');
+      }
+
+      // Check if password is correct
+      const isPasswordCorrect = bcrypt.compareSync(
+        input.password,
+        user.password
+      );
+      if (!isPasswordCorrect) {
+        throw new Error('Invalid Credentials!');
+      }
+
+      return {
+        user,
+        token: 'dummy_token',
+      };
+    },
+  },
+
+  User: {
+    id: ({ _id, id }) => _id || id,
+  },
 };
 
 // Start the db
