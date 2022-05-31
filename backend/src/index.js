@@ -1,5 +1,5 @@
 const { ApolloServer, gql } = require('apollo-server');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 // Load env vars
@@ -8,7 +8,26 @@ dotenv.config();
 
 const { DB_URI, DB_NAME, JWT_SECRET } = process.env;
 
-const getToken = (user) => jwt.sign({ id: user.id });
+const getToken = (user) =>
+  jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '60 days' });
+
+const getUserFromToken = async (token, db) => {
+  if (!token) {
+    return null;
+  }
+
+  const tokenData = jwt.verify(token, JWT_SECRET);
+
+  if (!tokenData?.id) {
+    return null;
+  }
+
+  const user = await db
+    .collection('Users')
+    .findOne({ _id: ObjectId(tokenData.id) });
+
+  return user;
+};
 
 const typeDefs = gql`
   type Query {
@@ -80,7 +99,7 @@ const resolvers = {
       if (result.acknowledged) {
         return {
           user,
-          token: 'dummy_token',
+          token: getToken(user),
         };
       }
     },
@@ -96,7 +115,7 @@ const resolvers = {
 
       return {
         user,
-        token: 'dummy_token',
+        token: getToken(user),
       };
     },
   },
@@ -126,7 +145,14 @@ const start = async () => {
   const server = new ApolloServer({
     typeDefs,
     resolvers,
-    context,
+    context: async ({ req }) => {
+      const user = await getUserFromToken(req.headers.authorization, db);
+
+      return {
+        db,
+        user,
+      };
+    },
     csrfPrevention: true,
   });
 
