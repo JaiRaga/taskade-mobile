@@ -1,11 +1,14 @@
 const { ApolloServer, gql } = require('apollo-server');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 // Load env vars
 const dotenv = require('dotenv');
 dotenv.config();
 
-const { DB_URI, DB_NAME } = process.env;
+const { DB_URI, DB_NAME, JWT_SECRET } = process.env;
+
+const getToken = (user) => jwt.sign({ id: user.id });
 
 const typeDefs = gql`
   type Query {
@@ -83,16 +86,11 @@ const resolvers = {
     },
     signIn: async (_, { input }, { db }) => {
       const user = await db.collection('Users').findOne({ email: input.email });
-      if (!user) {
-        throw new Error('Invalid Credentials!');
-      }
-
       // Check if password is correct
-      const isPasswordCorrect = bcrypt.compareSync(
-        input.password,
-        user.password
-      );
-      if (!isPasswordCorrect) {
+      const isPasswordCorrect =
+        user && bcrypt.compareSync(input.password, user.password);
+
+      if (!user || !isPasswordCorrect) {
         throw new Error('Invalid Credentials!');
       }
 
