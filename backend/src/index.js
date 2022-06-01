@@ -35,8 +35,9 @@ const typeDefs = gql`
   }
 
   type Mutation {
-    signUp(input: SignUpInput): AuthUser!
-    signIn(input: SignInInput): AuthUser!
+    signUp(input: SignUpInput!): AuthUser!
+    signIn(input: SignInInput!): AuthUser!
+    createTaskList(title: String!): TaskList!
   }
 
   input SignUpInput {
@@ -84,7 +85,18 @@ const typeDefs = gql`
 
 const resolvers = {
   Query: {
-    myTaskLists: () => [],
+    myTaskLists: async (_, __, { db, user }) => {
+      if (!user) {
+        throw new Error('Authenticaion Error. Please Sign in.');
+      }
+      const taskLists = await db
+        .collection('TaskList')
+        .find({ userIds: user._id })
+        .toArray();
+      console.log(taskLists);
+
+      return taskLists;
+    },
   },
   Mutation: {
     signUp: async (_, { input }, { db }) => {
@@ -118,10 +130,38 @@ const resolvers = {
         token: getToken(user),
       };
     },
+    createTaskList: async (_, { title }, { db, user }) => {
+      if (!user) {
+        throw new Error('Authentication Failed. Please Sign in.');
+      }
+
+      const newTaskList = {
+        title,
+        createdAt: new Date().toISOString(),
+        userIds: [user._id],
+      };
+
+      const result = await db.collection('TaskList').insertOne(newTaskList);
+      // console.log(result);
+      if (result.acknowledged) {
+        const taskList = await db
+          .collection('TaskList')
+          .findOne({ _id: result.insertedId });
+        return taskList;
+      }
+    },
   },
 
   User: {
     id: ({ _id, id }) => _id || id,
+  },
+  TaskList: {
+    id: ({ _id, id }) => _id || id,
+    progress: () => 0,
+    users: async ({ userIds }, _, { db }) =>
+      Promise.all(
+        userIds.map((userId) => db.collection('Users').findOne({ _id: userId }))
+      ),
   },
 };
 
