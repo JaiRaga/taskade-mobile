@@ -32,12 +32,16 @@ const getUserFromToken = async (token, db) => {
 const typeDefs = gql`
   type Query {
     myTaskLists: [TaskList!]!
+    getTaskList(id: ID!): TaskList
   }
 
   type Mutation {
     signUp(input: SignUpInput!): AuthUser!
     signIn(input: SignInInput!): AuthUser!
     createTaskList(title: String!): TaskList!
+    updateTaskList(id: ID!, title: String!): TaskList!
+    deleteTaskList(id: ID!): Boolean!
+    addUserToTaskList(taskListId: ID!, userId: ID!): TaskList!
   }
 
   input SignUpInput {
@@ -97,6 +101,16 @@ const resolvers = {
 
       return taskLists;
     },
+    getTaskList: async (_, { id }, { db, user }) => {
+      if (!user) {
+        throw new Error('Authentication Failed. Please Sign in.');
+      }
+      const result = await db
+        .collection('TaskList')
+        .findOne({ _id: ObjectId(id) });
+      console.log(result);
+      return result;
+    },
   },
   Mutation: {
     signUp: async (_, { input }, { db }) => {
@@ -147,6 +161,64 @@ const resolvers = {
         const taskList = await db
           .collection('TaskList')
           .findOne({ _id: result.insertedId });
+        return taskList;
+      }
+    },
+    updateTaskList: async (_, { id, title }, { db, user }) => {
+      if (!user) {
+        throw new Error('Authentication Failed. Please Sign in.');
+      }
+
+      const result = await db
+        .collection('TaskList')
+        .updateOne({ _id: ObjectId(id) }, { $set: { title } });
+
+      console.log(result);
+      if (result.acknowledged) {
+        const taskList = await db
+          .collection('TaskList')
+          .findOne({ _id: ObjectId(id) });
+        console.log(taskList);
+        return taskList;
+      }
+    },
+    deleteTaskList: async (_, { id }, { db, user }) => {
+      if (!user) {
+        throw new Error('Authentication Failed. Please Sign in.');
+      }
+      const result = await db
+        .collection('TaskList')
+        .deleteOne({ _id: ObjectId(id) });
+      return result.acknowledged && result.deletedCount !== 0;
+    },
+    addUserToTaskList: async (_, { taskListId, userId }, { db, user }) => {
+      if (!user) {
+        throw new Error('Authentication Failed. Please Sign in.');
+      }
+
+      const taskList = await db
+        .collection('TaskList')
+        .findOne({ _id: ObjectId(taskListId) });
+
+      if (
+        taskList.userIds.find((dbId) => dbId.toString() === userId.toString())
+      ) {
+        return taskList;
+      }
+
+      const result = await db.collection('TaskList').updateOne(
+        { _id: ObjectId(taskListId) },
+        {
+          $push: {
+            userIds: ObjectId(userId),
+          },
+        }
+      );
+      console.log(result);
+      if (result.acknowledged) {
+        const taskList = await db
+          .collection('TaskList')
+          .findOne({ _id: ObjectId(taskListId) });
         return taskList;
       }
     },
