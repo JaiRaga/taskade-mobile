@@ -38,10 +38,15 @@ const typeDefs = gql`
   type Mutation {
     signUp(input: SignUpInput!): AuthUser!
     signIn(input: SignInInput!): AuthUser!
+
     createTaskList(title: String!): TaskList!
     updateTaskList(id: ID!, title: String!): TaskList!
     deleteTaskList(id: ID!): Boolean!
     addUserToTaskList(taskListId: ID!, userId: ID!): TaskList!
+
+    createToDo(content: String!, taskListId: ID!): ToDo!
+    updateToDo(id: ID!, content: String, isCompleted: Boolean): ToDo!
+    deleteToDo(id: ID!): Boolean!
   }
 
   input SignUpInput {
@@ -75,10 +80,10 @@ const typeDefs = gql`
     progress: Float!
 
     users: [User!]!
-    todos: [Todo!]!
+    todos: [ToDo!]!
   }
 
-  type Todo {
+  type ToDo {
     id: ID!
     content: String!
     isCompleted: Boolean!
@@ -144,6 +149,7 @@ const resolvers = {
         token: getToken(user),
       };
     },
+    // TaskList
     createTaskList: async (_, { title }, { db, user }) => {
       if (!user) {
         throw new Error('Authentication Failed. Please Sign in.');
@@ -222,6 +228,51 @@ const resolvers = {
         return taskList;
       }
     },
+    //TODO items
+    createToDo: async (_, { content, taskListId }, { db, user }) => {
+      if (!user) {
+        throw new Error('Authentication Failed. Please Sign in.');
+      }
+      const newToDo = {
+        content,
+        taskListId: ObjectId(taskListId),
+        isCompleted: false,
+      };
+      const result = await db.collection('ToDo').insertOne(newToDo);
+      console.log(result);
+      if (result.acknowledged) {
+        const todo = await db
+          .collection('ToDo')
+          .findOne({ _id: result.insertedId });
+        console.log(todo);
+        return todo;
+      }
+    },
+    updateToDo: async (_, data, { db, user }) => {
+      if (!user) {
+        throw new Error('Authentication Failed. Please Sign in.');
+      }
+      const result = await db
+        .collection('ToDo')
+        .updateOne({ _id: ObjectId(data.id) }, { $set: data });
+
+      if (result.acknowledged) {
+        const todo = await db
+          .collection('ToDo')
+          .findOne({ _id: ObjectId(data.id) });
+        return todo;
+      }
+    },
+    deleteToDo: async (_, { id }, { db, user }) => {
+      if (!user) {
+        throw new Error('Authentication Failed. Please Sign in.');
+      }
+      const result = await db
+        .collection('ToDo')
+        .deleteOne({ _id: ObjectId(id) });
+      console.log(result);
+      return result.acknowledged && result.deletedCount !== 0;
+    },
   },
 
   User: {
@@ -234,6 +285,16 @@ const resolvers = {
       Promise.all(
         userIds.map((userId) => db.collection('Users').findOne({ _id: userId }))
       ),
+    todos: async ({ _id }, _, { db }) =>
+      await db
+        .collection('ToDo')
+        .find({ taskListId: ObjectId(_id) })
+        .toArray(),
+  },
+  ToDo: {
+    id: ({ _id, id }) => _id || id,
+    taskList: async ({ taskListId }, _, { db }) =>
+      await db.collection('TaskList').findOne({ _id: ObjectId(taskListId) }),
   },
 };
 
