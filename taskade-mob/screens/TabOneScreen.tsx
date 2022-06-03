@@ -1,15 +1,37 @@
-import { StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { FlatList, StyleSheet, TextInput } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import EditScreenInfo from '../components/EditScreenInfo';
 import { Text, View } from '../components/Themed';
 import { RootTabScreenProps } from '../types';
+import ToDoItem from '../components/ToDoItem';
 
-export default function TabOneScreen({ navigation }: RootTabScreenProps<'TabOne'>) {
+export default function TabOneScreen({
+  navigation,
+}: RootTabScreenProps<'TabOne'>) {
+  let id = '4';
+  const [todos, setTodos] = useState([
+    { id: '1', content: 'Buy cookies', isCompleted: false },
+    { id: '2', content: 'Car Wash', isCompleted: true },
+    { id: '3', content: 'Pay bills', isCompleted: false },
+    { id: '4', content: 'Cardio', isCompleted: true },
+  ]);
+
+  const createNewItem = (atIndex: number) => {
+    const newTodos = [...todos];
+    newTodos.splice(atIndex, 0, { id, content: '', isCompleted: false });
+    setTodos(newTodos)
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="/screens/TabOneScreen.tsx" />
+      <FlatList
+        data={todos}
+        renderItem={({ item, index }) => (
+          <ToDoItem todo={item} onSubmit={() => createNewItem(index + 1)} />
+        )}
+        style={styles.todos}
+      />
     </View>
   );
 }
@@ -18,15 +40,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    padding: 12,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
+  todos: {
+    width: '100%',
   },
 });
