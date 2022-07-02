@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   StyleSheet,
   TextInput,
@@ -9,6 +10,7 @@ import { Text, View } from '../components/Themed';
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { useMutation, gql } from '@apollo/client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Navigation from '../navigation';
 
 const SIGN_UP_MUTATION = gql`
@@ -34,6 +36,20 @@ const SignUpScreen = () => {
   const [signUp, { data, error, loading }] = useMutation(SIGN_UP_MUTATION);
   // mutation[0] => A function to trigger the mutation
   // mutation[1] => result Object containing the following {data, error, loading}
+
+  // if error is true
+  if (error) {
+    Alert.alert('Error signing up. Try again.');
+  }
+
+  // if we receive signup object as response
+  if (data) {
+    // Save token
+    AsyncStorage.setItem('token', data.signUp.token).then(() => {
+      // redirect home
+      navigation.navigate('Home');
+    });
+  }
 
   console.log('Sign up Screen', data, error, loading);
 
