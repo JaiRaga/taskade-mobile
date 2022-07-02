@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Keyboard,
   FlatList,
@@ -9,31 +9,63 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableWithoutFeedback,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useQuery, gql } from '@apollo/client';
+import { useRoute } from '@react-navigation/native';
 
 import { Text, View } from '../components/Themed';
 import { RootTabScreenProps } from '../types';
 import ToDoItem from '../components/ToDoItem';
 
+const GET_PROJECT = gql`
+  query getTaskList($id: ID!) {
+    getTaskList(id: $id) {
+      id
+      title
+      createdAt
+      todos {
+        id
+        content
+        isCompleted
+      }
+    }
+  }
+`;
+
 let id = '4';
 
-export default function ToDoScreen({
-  navigation,
-}: RootTabScreenProps<'TabOne'>) {
-  const [title, setTitle] = useState('');
-  const [todos, setTodos] = useState([
-    { id: '1', content: 'Buy cookies', isCompleted: false },
-    { id: '2', content: 'Car Wash', isCompleted: true },
-    { id: '3', content: 'Pay bills', isCompleted: false },
-    { id: '4', content: 'Cardio', isCompleted: true },
-  ]);
+export default function ToDoScreen() {
+  const [project, setProject] = useState(null)
+  const [title, setTitle] = useState('')
+  const route = useRoute();
+
+  const { data, error, loading } = useQuery(GET_PROJECT, {
+    variables: { id: route.params?.id },
+  });
 
   const createNewItem = (atIndex: number) => {
-    const newTodos = [...todos];
-    newTodos.splice(atIndex, 0, { id, content: '', isCompleted: false });
-    setTodos(newTodos);
+    
   };
+
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error fetching project', error.message);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (data) {
+      setProject(data.getTaskList)
+      setTitle(data.getTaskList.title)
+    }
+  }, [data]);
+
+  if (!project) {
+    return <ActivityIndicator color="white" />;
+  }
 
   return (
     <KeyboardAvoidingView
@@ -52,7 +84,7 @@ export default function ToDoScreen({
           />
 
           <FlatList
-            data={todos}
+            data={project.todos}
             renderItem={({ item, index }) => (
               <ToDoItem todo={item} onSubmit={() => createNewItem(index + 1)} />
             )}
