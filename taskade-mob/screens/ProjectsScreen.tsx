@@ -1,28 +1,49 @@
-import { useState } from 'react';
-import { StyleSheet, FlatList } from 'react-native';
-
-import EditScreenInfo from '../components/EditScreenInfo';
-import ProjectItem from '../components/ProjectItem';
+import { useEffect, useState } from 'react';
+import { StyleSheet, FlatList, Alert, ActivityIndicator } from 'react-native';
 import { Text, View } from '../components/Themed';
+import { useQuery, gql } from '@apollo/client';
+import ProjectItem from '../components/ProjectItem';
+
+const MY_PROJECTS = gql`
+  query getTasks {
+    myTaskLists {
+      id
+      title
+      createdAt
+    }
+  }
+`;
 
 export default function ProjectsScreen() {
-  const [projects, setProjects] = useState([
-    {
-      id: '1',
-      title: 'project 1',
-      createdAt: '2d',
-    },
-    {
-      id: '2',
-      title: 'project 2',
-      createdAt: '3d',
-    },
-    {
-      id: '3',
-      title: 'project 3',
-      createdAt: '4d',
-    },
-  ]);
+  const [projects, setProjects] = useState([]);
+  // console.log('Projects screen', projects);
+
+  const { data, error, loading } = useQuery(MY_PROJECTS);
+  console.log(
+    'Projects screen',
+    'data:',
+    data,
+    'error:',
+    error,
+    'loading:',
+    loading
+  );
+
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error fetching projects', error.message);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (data) {
+      setProjects(data.myTaskLists);
+    }
+  }, [data]);
+
+  if (loading) {
+    return <ActivityIndicator color="white" />;
+  }
 
   return (
     <View style={styles.container}>
@@ -43,6 +64,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   projects: {
-    width: "100%"
-  }
+    width: '100%',
+  },
 });
