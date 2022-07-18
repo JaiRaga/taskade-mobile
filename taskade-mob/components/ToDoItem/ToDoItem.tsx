@@ -1,5 +1,6 @@
 import { View, Text, TextInput } from 'react-native';
 import React, { useEffect, useState, useRef } from 'react';
+import { useMutation, gql } from '@apollo/client';
 import styles from './styles';
 import Checkbox from '../Checkbox';
 
@@ -12,11 +13,36 @@ interface ToDoItemProps {
   onSubmit: () => void;
 }
 
+const UPDATE_TODO = gql`
+  mutation UpdateTodo($isCompleted: Boolean, $content: String, $id: ID!) {
+    updateToDo(id: $id, content: $content, isCompleted: $isCompleted) {
+      id
+      content
+      isCompleted
+      taskList {
+        title
+      }
+    }
+  }
+`;
+
 const ToDoItem = ({ todo, onSubmit }: ToDoItemProps) => {
   const [isChecked, setIsChecked] = useState(false);
   const [content, setContent] = useState('');
 
+  const [updateToDo] = useMutation(UPDATE_TODO);
+
   const input = useRef<any>();
+
+  const callUpdateToDo = () => {
+    updateToDo({
+      variables: {
+        id: todo.id,
+        content,
+        isCompleted: isChecked,
+      },
+    });
+  };
 
   useEffect(() => {
     if (!todo) return;
@@ -33,9 +59,9 @@ const ToDoItem = ({ todo, onSubmit }: ToDoItemProps) => {
   }, [input]);
 
   const onKeyPress = ({ nativeEvent }) => {
-    if (nativeEvent.key === "Backspace" && content === '') {
+    if (nativeEvent.key === 'Backspace' && content === '') {
       // Delete item
-      console.warn('delete item')
+      console.warn('delete item');
     }
   };
 
@@ -44,7 +70,10 @@ const ToDoItem = ({ todo, onSubmit }: ToDoItemProps) => {
       {/* Checkbox */}
       <Checkbox
         isChecked={isChecked}
-        onPress={() => setIsChecked(!isChecked)}
+        onPress={() => {
+          setIsChecked(!isChecked);
+          callUpdateToDo();
+        }}
       />
 
       {/* Text input */}
@@ -54,6 +83,7 @@ const ToDoItem = ({ todo, onSubmit }: ToDoItemProps) => {
         value={content}
         onChangeText={setContent}
         multiline
+        onEndEditing={callUpdateToDo}
         onSubmitEditing={onSubmit}
         blurOnSubmit
         onKeyPress={onKeyPress}
