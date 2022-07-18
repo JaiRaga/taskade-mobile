@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useQuery, gql } from '@apollo/client';
+import { useQuery, useMutation, gql } from '@apollo/client';
 import { useRoute } from '@react-navigation/native';
 
 import { Text, View } from '../components/Themed';
@@ -35,20 +35,87 @@ const GET_PROJECT = gql`
   }
 `;
 
-let id = '4';
+const CREATE_TODO = gql`
+  mutation ToDo($content: String!, $taskListId: ID!) {
+    createToDo(content: $content, taskListId: $taskListId) {
+      id
+      content
+      isCompleted
+      taskList {
+        id
+        progress
+      }
+    }
+  }
+`;
+
+const UPDATE_TASKLIST = gql`
+  mutation updateTaskList($id: ID!, $title: String!) {
+    updateTaskList(id: $id, title: $title) {
+      id
+      title
+      createdAt
+      progress
+      users {
+        id
+        name
+      }
+    }
+  }
+`;
 
 export default function ToDoScreen() {
-  const [project, setProject] = useState(null)
-  const [title, setTitle] = useState('')
+  const [project, setProject] = useState(null);
+  const [todos, setTodos] = useState([]);
+  const [title, setTitle] = useState('');
   const route = useRoute();
+  const id = route.params?.id;
+  // console.log('TodoScreen', id)
 
-  const { data, error, loading } = useQuery(GET_PROJECT, {
-    variables: { id: route.params?.id },
+  // console.log('Todo screen', project);
+  // console.log('Todo screen', todos);
+
+  // Get all todos from the backend
+  const { data, error, loading, refetch } = useQuery(GET_PROJECT, {
+    variables: { id },
+    fetchPolicy: 'cache-and-network',
   });
 
+  // Creates a todo
+  const [createToDo, { data: createToDoData, error: createToDoError }] =
+    useMutation(CREATE_TODO, { refetchQueries: GET_PROJECT });
+
+  console.log('ToDoScreen', JSON.stringify(createToDoError, null, 2));
+
+  // create new todo cell
   const createNewItem = (atIndex: number) => {
-    
+    console.log('Pressed*******************');
+
+    createToDo({
+      variables: {
+        content: '',
+        taskListId: id,
+      },
+    });
+
+    // fetches the todos
+    refetch();
   };
+
+  // update the title of tasklist
+  const [
+    updateTaskList,
+    { data: updateTasklistData, error: updateTasklistError },
+  ] = useMutation(UPDATE_TASKLIST);
+
+  const updateTitle = () => {
+    updateTaskList({
+      variables: {
+        id: project!.id,
+        title
+      }
+    })
+  }
 
   useEffect(() => {
     if (error) {
@@ -58,14 +125,17 @@ export default function ToDoScreen() {
 
   useEffect(() => {
     if (data) {
-      setProject(data.getTaskList)
-      setTitle(data.getTaskList.title)
+      setProject(data.getTaskList);
+      setTitle(data.getTaskList.title);
+      setTodos(data.getTaskList.todos);
     }
   }, [data]);
 
   if (!project) {
     return <ActivityIndicator color="white" />;
   }
+
+  
 
   return (
     <KeyboardAvoidingView
@@ -80,6 +150,7 @@ export default function ToDoScreen() {
             onChangeText={setTitle}
             placeholder="Title"
             placeholderTextColor="#eee"
+            onSubmitEditing={updateTitle}
             style={styles.title}
           />
 
