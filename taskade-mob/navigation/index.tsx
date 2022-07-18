@@ -3,7 +3,7 @@
  * https://reactnavigation.org/docs/getting-started
  *
  */
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
   NavigationContainer,
@@ -11,8 +11,8 @@ import {
   DarkTheme,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import * as React from 'react';
-import { ColorSchemeName, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { ColorSchemeName, Pressable, TouchableOpacity } from 'react-native';
 
 import Colors from '../constants/Colors';
 import useColorScheme from '../hooks/useColorScheme';
@@ -52,6 +52,7 @@ export default function Navigation({
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function RootNavigator() {
+  const [modalVisible, setModalVisible] = useState(false);
   return (
     <Stack.Navigator>
       <Stack.Screen
@@ -69,7 +70,18 @@ function RootNavigator() {
         component={SignUpScreen}
         options={{ title: 'Sign Up' }}
       />
-      <Stack.Screen name="Home" component={ProjectsScreen} />
+      <Stack.Screen
+        name="Home"
+        component={() => <ProjectsScreen modalVisible={modalVisible} setModalVisible={setModalVisible} />}
+        options={{
+          headerBackVisible: false,
+          headerRight: () => (
+            <TouchableOpacity onPress={() => setModalVisible(!modalVisible)}>
+              <Ionicons name="ios-create-outline" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <Stack.Screen name="ToDoScreen" component={ToDoScreen} />
       <Stack.Screen
         name="NotFound"
